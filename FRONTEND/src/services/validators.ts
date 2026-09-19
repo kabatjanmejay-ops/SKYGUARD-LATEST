@@ -77,7 +77,7 @@ export function validateStations(data: unknown): Station[] {
     throw ApiError.validationError('Stations response must be an array.');
   }
 
-  const allowedStatuses = ['NORMAL', 'WARNING', 'OFFLINE'] as const;
+  const allowedStatuses = ['NORMAL', 'WARNING', 'CRITICAL', 'OFFLINE'] as const;
   type AllowedStatus = (typeof allowedStatuses)[number];
 
   return data.map((item, idx) => {

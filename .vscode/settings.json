@@ -1,0 +1,30 @@
+{
+  "sqltools.connections": [
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "d2ct4oixm9.boce25e8rq.tsdb.cloud.timescale.com",
+      "driver": "PostgreSQL",
+      "name": "Janmejay",
+      "database": "SykguardDB",
+      "username": "jk",
+      "connectString": "d2ct4oixm9.boce25e8rq.tsdb.cloud.timescale.com"
+    },
+    {
+      "pgOptions": {
+        "ssl": {
+          "rejectUnauthorized": false
+        }
+      },
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "d2ct4oixm9.boce25e8rq.tsdb.cloud.timescale.com",
+      "port": 39682,
+      "driver": "PostgreSQL",
+      "name": "Skyguard",
+      "database": "tsdb",
+      "username": "tsdbadmin",
+      "password": "pgax10kf35ipvjlz"
+    }
+  ]
+}

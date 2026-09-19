@@ -3,7 +3,7 @@ import { SystemStatusSummary } from '../types';
 import { anomalyService } from '../services/anomalyService';
 import { systemStatusService } from '../services/systemStatusService';
 import { requestTelemetryRefresh } from '../utils/refreshEvents';
-import { isMockMode } from '../config/api.config';
+import { isMockMode, API_CONFIG } from '../config/api.config';
 
 export interface UseSensorPollingResult {
   readings: never[];
@@ -48,12 +48,30 @@ export function useSensorPolling(autoPoll: boolean = false): UseSensorPollingRes
 
   useEffect(() => {
     fetchData(false);
+    
+    let ws: WebSocket | null = null;
+    
     if (autoPoll) {
-      timerRef.current = window.setInterval(() => {
-        fetchData(false);
-      }, 5000);
+      if (!isMockMode()) {
+        const wsUrl = API_CONFIG.baseUrl.replace(/^http/, 'ws') + '/api/ws';
+        ws = new WebSocket(wsUrl);
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "TICK") {
+              fetchData(false);
+            }
+          } catch (e) {}
+        };
+      } else {
+        timerRef.current = window.setInterval(() => {
+          fetchData(false);
+        }, 5000);
+      }
     }
+    
     return () => {
+      if (ws) ws.close();
       if (timerRef.current !== null) {
         clearInterval(timerRef.current);
       }

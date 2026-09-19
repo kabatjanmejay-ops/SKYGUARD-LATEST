@@ -142,7 +142,7 @@ from model.detect import score_reading, SensorHealthTracker, PARAMS
 from model.features import ROLLING_WINDOW_HOURS, DRIFT_LOOKBACK_HOURS
 from model.explain import ExplainerCache
 from config import RECOVERY_CLEAN_STREAK_REQUIRED
-from history_store import HistoryStore
+from timescale_store import TimescaleStore
 
 # History buffer needs enough hours for the longest lookback any
 # feature uses -- DRIFT_LOOKBACK_HOURS (24) vs ROLLING_WINDOW_HOURS (48)
@@ -327,7 +327,7 @@ class StateManager:
     once diverged from train.py earlier this project.
     """
 
-    def __init__(self, metadata: pd.DataFrame, artifact: dict, history_store: HistoryStore = None):
+    def __init__(self, metadata: pd.DataFrame, artifact: dict, history_store: TimescaleStore = None):
         self.metadata = metadata
         self.artifact = artifact
         self.explainer = ExplainerCache(artifact)
@@ -337,7 +337,7 @@ class StateManager:
         # Persistent history survives mode switches by design -- see
         # module docstring §A/§B. Injectable for tests; defaults to the
         # real on-disk store.
-        self.history = history_store or HistoryStore()
+        self.history = history_store or TimescaleStore()
 
         # Starts in live mode. main.py should call start_replay() before
         # kicking off any historical replay run -- see "MAIN.PY

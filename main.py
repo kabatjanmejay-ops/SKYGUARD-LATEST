@@ -17,13 +17,49 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 import asyncio
 import pandas as pd
+import json
+from datetime import datetime
+
+load_dotenv()
 
 sys.path.append(str(Path(__file__).parent))
 from model.simulator import create_simulator_state, run_simulation_loop
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        # basic string conversion for payload
+        def json_serial(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+            
+        payload = json.dumps(message, default=json_serial)
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_text(payload)
+            except Exception:
+                self.disconnect(connection)
+
+ws_manager = ConnectionManager()
+
+async def ws_on_tick(latest_data):
+    await ws_manager.broadcast({"type": "TICK", "data": "update"})
 
 
 def _json_nullable(value):
@@ -39,6 +75,7 @@ def _json_nullable(value):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.sim = create_simulator_state()
+    app.state.sim.on_tick_callbacks.append(ws_on_tick)
     # Fetch/ingest the first live snapshot before HTTP routes become
     # available. This prevents normal dashboard startup from racing the
     # first Open-Meteo request and receiving misleading 404 responses.
@@ -66,6 +103,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
 
 @app.get("/api/system-status")
 def get_system_status():

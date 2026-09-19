@@ -180,6 +180,7 @@ class SimulatorState:
         self.metadata = metadata
         self.manager = StateManager(metadata, artifact)
 
+        self.on_tick_callbacks = []
         self._replay_cursor_idx: int = 0
         self._replay_frames: dict[str, pd.DataFrame] = {}  # populated lazily on start_replay()
         self._replay_len: int = 0
@@ -504,6 +505,12 @@ class SimulatorState:
             self._replay_cursor_idx += 1
             if self._replay_cursor_idx >= self._replay_len:
                 self._stop_replay()
+
+        for cb in self.on_tick_callbacks:
+            if asyncio.iscoroutinefunction(cb):
+                await cb(self.latest)
+            else:
+                cb(self.latest)
 
 
 async def run_simulation_loop(sim_state: SimulatorState):

@@ -16,6 +16,7 @@ import { systemStatusService } from '../services/systemStatusService';
 import { ApiError, formatUserErrorMessage } from '../services/apiError';
 import { calculateFreshness, FreshnessState } from '../utils/freshness';
 import { TELEMETRY_REFRESH_EVENT } from '../utils/refreshEvents';
+import { isMockMode, API_CONFIG } from '../config/api.config';
 
 export interface DashboardDataState {
   currentReading: CurrentSensorReading | null;
@@ -435,14 +436,31 @@ export function useDashboardData(
     }
 
     const effectivePollingMs = streamStatus.mode === 'replay' ? 1000 : pollingIntervalMs;
-    timerRef.current = window.setInterval(() => {
-      if (!isPausedRef.current) {
-        fetchReading();
-        fetchHealth();
-      }
-    }, effectivePollingMs);
+    
+    let ws: WebSocket | null = null;
+    if (!isMockMode()) {
+      const wsUrl = API_CONFIG.baseUrl.replace(/^http/, 'ws') + '/api/ws';
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "TICK" && !isPausedRef.current) {
+            fetchReading();
+            fetchHealth();
+          }
+        } catch (e) {}
+      };
+    } else {
+      timerRef.current = window.setInterval(() => {
+        if (!isPausedRef.current) {
+          fetchReading();
+          fetchHealth();
+        }
+      }, effectivePollingMs);
+    }
 
     return () => {
+      if (ws) ws.close();
       if (timerRef.current !== null) {
         clearInterval(timerRef.current);
         timerRef.current = null;
